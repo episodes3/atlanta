@@ -1,0 +1,17 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ATLANTA TRIP 2026</title><link rel="stylesheet" href="style.css"></head><body>
+<div class="app"><aside><div class="brand"><b>ATLANTA</b><span>TRIP NOTE · 2026</span></div><nav><button class="nav active" data-tab="main">⌂ <span>MAIN</span></button><button class="nav" data-tab="schedule">◫ <span>SCHEDULE</span></button><button class="nav" data-tab="plan">✎ <span>PLAN</span></button></nav><div class="side-foot">OCT 01 — OCT 06<br>혜영이는 못말려</div></aside>
+<main>
+<section id="main" class="tab active"><header><div><p class="eyebrow">ATLANTA BUSINESS TRIP</p><h1>오늘만 보면 돼.</h1><p class="muted" id="todayLabel"></p></div><div class="dday" id="dday">D-DAY</div></header>
+<div class="hero-grid"><article class="card today"><div class="card-head"><h2>오늘 일정</h2><button class="linkbtn" onclick="goScheduleToday()">전체 일정 →</button></div><div id="todaySchedule"></div></article><article class="card"><div class="card-head"><h2>오늘 챙길 것</h2><button class="tiny" onclick="addCheck()">+ 추가</button></div><div id="checklist" class="checklist"></div></article></div>
+<div class="grid2"><article class="card"><h2>오늘 메모</h2><textarea id="todayMemo" class="memo small" placeholder="현장 변경사항, 챙길 것, 전달사항..." data-save="todayMemo"></textarea></article><article class="card info"><h2>출장 정보</h2><div><span>✈️ 항공</span><b>출국 KE0033 · 귀국 KE0034</b></div><div><span>🏠 숙소</span><b>3799 Grovemont Place, Duluth, GA 30096</b></div><a target="_blank" href="https://www.google.com/maps/d/u/2/edit?hl=ko&mid=110aCVb3nOAUGU5AsoaQanxcygSle8NI&ll=33.994356429928104%2C-84.24068270000001&z=10">Google My Maps 열기 ↗</a></article></div></section>
+<section id="schedule" class="tab"><header><div><p class="eyebrow">SCHEDULE</p><h1>애틀랜타 타임테이블</h1><p class="muted">10/1 — 10/6 · 엑셀 타임테이블 기준</p></div></header>
+<article class="card overview"><div class="card-head"><div><p class="eyebrow">AT A GLANCE</p><h2>한눈에 보는 일정</h2></div><span class="saved" id="overviewSaved">자동 저장</span></div><textarea id="overviewMemo" class="memo overview-memo" data-save="overviewMemo">10/1  ✈️ 출국 · 도착 / 답사
+10/2  🏠 애틀랜타 본가 공개 + CNL 수소미스트 PPL
+10/3  🛍️ 세모녀 쇼핑 · 빈티지샵
+10/4  🛒 미국 마트 추천템 + 26–27 F/W 패션 트렌드
+10/5  👩‍👧 엄마랑 데이트 · 센터 · 사진관 · 인터뷰
+10/6  ✈️ 귀국</textarea></article>
+<div id="dateTabs" class="date-tabs"></div><div id="dayDetail"></div></section>
+<section id="plan" class="tab"><header><div><p class="eyebrow">PLAN</p><h1>구성안 노트</h1><p class="muted">구성안 링크, 촬영 메모, 체크리스트를 한 곳에.</p></div><span class="saved" id="planSaved">자동 저장</span></header>
+<article class="editor-card"><div class="toolbar"><select id="fontSize" title="글씨 크기"><option value="3">작게</option><option value="4" selected>보통</option><option value="5">크게</option><option value="6">아주 크게</option></select><button data-cmd="bold"><b>B</b></button><button data-cmd="underline"><u>U</u></button><button data-cmd="strikeThrough"><s>S</s></button><button id="checkBtn">☑ 체크</button><button id="linkBtn">🔗 링크</button><button id="clearBtn" class="danger">전체 지우기</button></div><div id="editor" class="editor" contenteditable="true" data-placeholder="여기에 구성안 링크와 메모를 자유롭게 적어주세요.\n\n예) 10/2 본가 공개\n구성안 바로가기"></div></article></section>
+</main></div><script src="app.js"></script></body></html>
