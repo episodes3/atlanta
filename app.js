@@ -7,16 +7,48 @@ const days=[
 {date:'10/6',dow:'화',title:'귀국',events:[['10:00','공항 도착'],['11:35','애틀랜타 출발','KE0034 · 15시간 20분 비행']]}
 ];
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);let selected=0;
-const savedDays=localStorage.getItem('atl_schedule_days');
-if(savedDays){
-  try{
-    const parsed=JSON.parse(savedDays);
-    if(Array.isArray(parsed)&&parsed.length===days.length){
-      parsed.forEach((d,i)=>{ if(Array.isArray(d.events)) days[i].events=d.events; });
-    }
-  }catch(e){}
+const SUPABASE_URL='https://nifpsxmxhsqlwwtjcdtn.supabase.co';
+const SUPABASE_KEY='sb_publishable_0pM1NMvCPptzNr_fGxs1eA_1_nW6C7m';
+const API=SUPABASE_URL+'/rest/v1/atlanta_app';
+const apiHeaders={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'};
+let cloudReady=false, saveTimer=null;
+let todayMemoValue='', overviewMemoValue=`10/1  ✈️ 출국 · 도착 / 답사
+10/2  🏠 애틀랜타 본가 공개 + CNL 수소미스트 PPL
+10/3  🛍️ 빈티지샵 털기
+10/4  🛒 미국 마트 추천템 + 26–27 F/W 패션 트렌드
+10/5  👩‍👧 엄마랑 데이트 · 센터 · 사진관 · 인터뷰
+10/6  ✈️ 귀국`, planValue='';
+let checks=[{t:'카메라 / 배터리',d:false},{t:'오디오',d:false},{t:'PPL 제품',d:false},{t:'구성안 확인',d:false}];
+function snapshot(){return {days:days.map(d=>({date:d.date,dow:d.dow,title:d.title,events:d.events})),todayMemo:todayMemoValue,overviewMemo:overviewMemoValue,checks,plan:planValue}}
+function applyState(data){
+  if(data&&Array.isArray(data.days)&&data.days.length===days.length)data.days.forEach((d,i)=>{if(Array.isArray(d.events))days[i].events=d.events;if(d.title)days[i].title=d.title});
+  if(data&&typeof data.todayMemo==='string')todayMemoValue=data.todayMemo;
+  if(data&&typeof data.overviewMemo==='string')overviewMemoValue=data.overviewMemo;
+  if(data&&Array.isArray(data.checks))checks=data.checks;
+  if(data&&typeof data.plan==='string')planValue=data.plan;
 }
-function saveSchedule(){localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday()}
+async function cloudSave(){
+  if(!cloudReady)return;
+  setSync('저장 중…');
+  try{
+    const r=await fetch(API+'?id=eq.main',{method:'PATCH',headers:{...apiHeaders,'Prefer':'return=minimal'},body:JSON.stringify({data:snapshot(),updated_at:new Date().toISOString()})});
+    if(!r.ok)throw new Error(await r.text());
+    setSync('저장됨');
+  }catch(e){console.error(e);setSync('저장 실패 · 다시 시도')}
+}
+function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(cloudSave,350)}
+function setSync(t){document.querySelectorAll('.sync-status').forEach(el=>el.textContent=t)}
+async function loadCloud(){
+  setSync('불러오는 중…');
+  try{
+    const r=await fetch(API+'?id=eq.main&select=data',{headers:apiHeaders}); if(!r.ok)throw new Error(await r.text());
+    const rows=await r.json(), data=rows[0]?.data||{};
+    if(Object.keys(data).length)applyState(data);
+    cloudReady=true; hydrateUI();
+    if(!Object.keys(data).length)await cloudSave(); else setSync('공용 저장 연결됨');
+  }catch(e){console.error(e);cloudReady=false;hydrateUI();setSync('연결 실패 · 새로고침')}
+}
+function saveSchedule(){renderDay();renderToday();queueSave()}
 
 $$('.nav').forEach(b=>b.onclick=()=>{$$('.nav,.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('#'+b.dataset.tab).classList.add('active')});
 function eventHTML(e){return `<div class="event"><div class="time">${e[0]}</div><div><div class="event-title">${e[1]}</div>${e[2]?`<div class="event-note">${e[2]}</div>`:''}</div></div>`}
@@ -38,20 +70,24 @@ function timeToMinutes(value){
   return Number.MAX_SAFE_INTEGER;
 }
 function sortEventsByTime(){days[selected].events=days[selected].events.map((e,i)=>({e,i})).sort((a,b)=>{const diff=timeToMinutes(a.e[0])-timeToMinutes(b.e[0]);return diff||a.i-b.i}).map(x=>x.e)}
-$('#scheduleSaveBtn').onclick=()=>{let time=$('#modalTime').value.trim(),title=$('#modalEventTitle').value.trim(),note=$('#modalEventNote').value.trim();if(!time||!title){alert('시간과 일정 내용을 입력해주세요.');return}let e=[time,title,note];if(editingEvent<0)days[selected].events.push(e);else days[selected].events[editingEvent]=e;sortEventsByTime();localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday();closeModal('scheduleModal')};
-$('#scheduleDeleteBtn').onclick=()=>{if(editingEvent>=0&&confirm('이 일정을 삭제할까요?')){days[selected].events.splice(editingEvent,1);localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday();closeModal('scheduleModal')}};
+$('#scheduleSaveBtn').onclick=()=>{let time=$('#modalTime').value.trim(),title=$('#modalEventTitle').value.trim(),note=$('#modalEventNote').value.trim();if(!time||!title){alert('시간과 일정 내용을 입력해주세요.');return}let e=[time,title,note];if(editingEvent<0)days[selected].events.push(e);else days[selected].events[editingEvent]=e;sortEventsByTime();saveSchedule();closeModal('scheduleModal')};
+$('#scheduleDeleteBtn').onclick=()=>{if(editingEvent>=0&&confirm('이 일정을 삭제할까요?')){days[selected].events.splice(editingEvent,1);saveSchedule();closeModal('scheduleModal')}};
 function tripIndex(){let n=new Date(),y=n.getFullYear();if(y!==2026)return 0;let m=n.getMonth()+1,day=n.getDate();if(m===10&&day>=1&&day<=6)return day-1;return 0}
 function renderToday(){let i=tripIndex(),d=days[i],now=new Date(),start=new Date(2026,9,1),diff=Math.ceil((start-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);todayLabel.textContent=`${d.date} ${d.dow}요일 · ${d.title}`;dday.textContent=diff>0?`D-${diff}`:diff===0?'D-DAY':(now<=new Date(2026,9,6)?`DAY ${i+1}`:'TRIP COMPLETE');todaySchedule.innerHTML=d.events.map(eventHTML).join('')}
 function goScheduleToday(){selected=tripIndex();document.querySelector('[data-tab=schedule]').click();renderDates()}
-['todayMemo','overviewMemo'].forEach(id=>{let el=$('#'+id),v=localStorage.getItem('atl_'+id);if(v!==null)el.value=v;el.addEventListener('input',()=>localStorage.setItem('atl_'+id,el.value))});
-let checks=JSON.parse(localStorage.getItem('atl_checks')||'[ {"t":"카메라 / 배터리","d":false},{"t":"오디오","d":false},{"t":"PPL 제품","d":false},{"t":"구성안 확인","d":false} ]');function saveChecks(){localStorage.setItem('atl_checks',JSON.stringify(checks));renderChecks()}function renderChecks(){checklist.innerHTML=checks.map((c,i)=>`<div class="checkrow ${c.d?'done':''}"><input type="checkbox" ${c.d?'checked':''} onchange="checks[${i}].d=this.checked;saveChecks()"><span contenteditable="true" onblur="checks[${i}].t=this.innerText;saveChecks()">${c.t}</span><button class="del" onclick="checks.splice(${i},1);saveChecks()">×</button></div>`).join('')}function addCheck(){checks.push({t:'새 항목',d:false});saveChecks()}
+function hydrateMemos(){ $('#todayMemo').value=todayMemoValue; $('#overviewMemo').value=overviewMemoValue; }
+['todayMemo','overviewMemo'].forEach(id=>{let el=$('#'+id);el.addEventListener('input',()=>{if(id==='todayMemo')todayMemoValue=el.value;else overviewMemoValue=el.value;queueSave()})});
+function saveChecks(){renderChecks();queueSave()}
+function renderChecks(){checklist.innerHTML=checks.map((c,i)=>`<div class="checkrow ${c.d?'done':''}"><input type="checkbox" ${c.d?'checked':''} onchange="checks[${i}].d=this.checked;saveChecks()"><span contenteditable="true" onblur="checks[${i}].t=this.innerText;saveChecks()">${esc(c.t)}</span><button class="del" onclick="checks.splice(${i},1);saveChecks()">×</button></div>`).join('')}
+function addCheck(){checks.push({t:'새 항목',d:false});saveChecks()}
 let editor=$('#editor'),planView=$('#planView');
 function normalizeLinks(root){root.querySelectorAll('a').forEach(a=>{let href=a.getAttribute('href')||'';if(href&&!/^(https?:|mailto:|tel:)/i.test(href))a.setAttribute('href','https://'+href);a.setAttribute('target','_blank');a.setAttribute('rel','noopener noreferrer')})}
-function renderPlanView(){let html=localStorage.getItem('atl_plan')||'';planView.innerHTML=html;normalizeLinks(planView);planView.classList.toggle('empty',!html.trim())}
-$('#planEditBtn').onclick=()=>{editor.innerHTML=localStorage.getItem('atl_plan')||'';openModal('planModal');setTimeout(()=>editor.focus(),0)};
-$('#planSaveBtn').onclick=()=>{normalizeLinks(editor);localStorage.setItem('atl_plan',editor.innerHTML);planSaved.textContent='저장됨';renderPlanView();closeModal('planModal')};
+function renderPlanView(){let html=planValue||'';planView.innerHTML=html;normalizeLinks(planView);planView.classList.toggle('empty',!html.trim())}
+$('#planEditBtn').onclick=()=>{editor.innerHTML=planValue||'';openModal('planModal');setTimeout(()=>editor.focus(),0)};
+$('#planSaveBtn').onclick=()=>{normalizeLinks(editor);planValue=editor.innerHTML;renderPlanView();queueSave();closeModal('planModal')};
 $$('[data-cmd]').forEach(b=>b.onclick=()=>{document.execCommand(b.dataset.cmd,false,null);editor.focus()});fontSize.onchange=()=>{document.execCommand('fontSize',false,fontSize.value);editor.focus()};linkBtn.onclick=()=>{let u=prompt('연결할 URL을 입력하세요');if(u){u=u.trim();if(u&&!/^(https?:|mailto:|tel:)/i.test(u))u='https://'+u;document.execCommand('createLink',false,u);normalizeLinks(editor);editor.focus()}};checkBtn.onclick=()=>{document.execCommand('insertHTML',false,'<div class="checkline"><input type="checkbox" tabindex="-1"> 체크 항목</div>');editor.focus()};clearBtn.onclick=()=>{if(confirm('편집 중인 구성안 노트를 모두 지울까요?'))editor.innerHTML=''};
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close==='schedule'?'scheduleModal':'planModal')));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#scheduleModal').classList.contains('open'))closeModal('scheduleModal');if($('#planModal').classList.contains('open'))closeModal('planModal')}});
-renderPlanView();
-renderToday();renderDates();renderChecks();
+function hydrateUI(){hydrateMemos();renderPlanView();renderToday();renderDates();renderChecks()}
+hydrateUI();
+loadCloud();
