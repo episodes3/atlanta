@@ -1,7 +1,7 @@
 const days=[
 {date:'10/1',dow:'목',title:'출발 · 애틀랜타 도착',events:[['07:00','인천 2터미널 집합'],['08:45','출국','KE0033 · 13시간 50분 비행'],['09:35','애틀랜타 도착'],['11:00','숙소 짐 보관'],['12:00','혜영 언니네 인사 및 집 답사'],['16:00','빈티지샵 / 마트 답사','시간 여유가 없을 시 10/2, 10/3 촬영 이후 진행'],['18:00','저녁'],['20:00','첫째 날 마무리'],['21:00','자유시간 및 취침']]},
 {date:'10/2',dow:'금',title:'애틀랜타 본가 공개',events:[['10:00','CNL 수소미스트 PPL'],['11:00','가족 집 도착'],['12:00','① 본가 촬영 (PPL 포함)','오즈모포켓2 · A7 · 거치캠 · 윈터폰\n10/2 이혜영 애틀란타 본가 공개.docx'],['18:00','저녁'],['20:00','둘째 날 마무리']]},
-{date:'10/3',dow:'토',title:'세모녀 쇼핑',events:[['10:00','가족 집 도착'],['11:00','겟레디윗미','쥬베룩 PPL'],['12:00','② 세모녀 쇼핑 · 빈티지샵','오즈모포켓2 · A7 · 윈터폰\nThe Clothing Warehouse / Space Queen / 2nd Street Ponce\n🥘 점심\n[혜영이는 못말려] 혜영이의 빈티지샵 털기_공유용_v1.docx'],['20:00','셋째 날 마무리']]},
+{date:'10/3',dow:'토',title:'빈티지샵 털기',events:[['10:00','가족 집 도착'],['11:00','겟레디윗미','쥬베룩 PPL'],['12:00','② 세모녀 쇼핑 · 빈티지샵','오즈모포켓2 · A7 · 윈터폰\nThe Clothing Warehouse / Space Queen / 2nd Street Ponce\n🥘 점심\n[혜영이는 못말려] 혜영이의 빈티지샵 털기_공유용_v1.docx'],['20:00','셋째 날 마무리']]},
 {date:'10/4',dow:'일',title:'마트 꿀템 · 패션 트렌드',events:[['11:00','아점'],['12:00','③ 미국 마트 추천템 구입','마트 구입 촬영 → 본가 주방 추천템 소개 촬영\n10/4 이혜영의 미국 마트 털기.docx v2.docx\n\n(휴식)\n\n④ 26–27 F/W 패션 트렌드 · 약 1시간 촬영'],['20:00','넷째 날 마무리']]},
 {date:'10/5',dow:'월',title:'엄마랑 데이트',events:[['07:00','엄마 집 도착'],['07:45','픽업 차 출발'],['08:30','⑤ 엄마랑 데이트 · 센터 방문','Joynus Care\n08:30–09:50 아침식사 & 건강체크\n09:30–11:00 오전 프로그램 (뉴스 · 운동 · 게임) + 깜짝 이벤트\n11:00–12:00 특별활동 (노래교실 참석)\n10/5 엄마랑 데이트하는 날.docx'],['12:00','점심'],['13:00','📸 사진관 방문'],['14:00','☕️🎤 카페 개인 인터뷰'],['20:00','다섯째 날 마무리']]},
 {date:'10/6',dow:'화',title:'귀국',events:[['10:00','공항 도착'],['11:35','애틀랜타 출발','KE0034 · 15시간 20분 비행']]}
@@ -29,7 +29,16 @@ let editingEvent=-1;
 function openScheduleModal(i){editingEvent=i;let isNew=i<0,e=isNew?['','','']:days[selected].events[i];$('#scheduleModalTitle').textContent=isNew?'새 일정 추가':'일정 수정';$('#modalTime').value=e[0]||'';$('#modalEventTitle').value=e[1]||'';$('#modalEventNote').value=e[2]||'';$('#scheduleDeleteBtn').style.display=isNew?'none':'inline-flex';openModal('scheduleModal');setTimeout(()=>$('#modalTime').focus(),0)}
 function openModal(id){let m=$('#'+id);m.classList.add('open');m.setAttribute('aria-hidden','false');document.body.classList.add('modal-open')}
 function closeModal(id){let m=$('#'+id);m.classList.remove('open');m.setAttribute('aria-hidden','true');if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-open')}
-$('#scheduleSaveBtn').onclick=()=>{let time=$('#modalTime').value.trim(),title=$('#modalEventTitle').value.trim(),note=$('#modalEventNote').value.trim();if(!time||!title){alert('시간과 일정 내용을 입력해주세요.');return}let e=[time,title,note];if(editingEvent<0)days[selected].events.push(e);else days[selected].events[editingEvent]=e;localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday();closeModal('scheduleModal')};
+function timeToMinutes(value){
+  const raw=String(value||'').trim();
+  const ampm=raw.match(/^(오전|오후)\s*(\d{1,2})(?::(\d{1,2}))?/);
+  if(ampm){let h=Number(ampm[2]),m=Number(ampm[3]||0);if(ampm[1]==='오후'&&h<12)h+=12;if(ampm[1]==='오전'&&h===12)h=0;return h*60+m}
+  const hm=raw.match(/^(\d{1,2})(?::(\d{1,2}))?/);
+  if(hm){const h=Number(hm[1]),m=Number(hm[2]||0);return h*60+m}
+  return Number.MAX_SAFE_INTEGER;
+}
+function sortEventsByTime(){days[selected].events=days[selected].events.map((e,i)=>({e,i})).sort((a,b)=>{const diff=timeToMinutes(a.e[0])-timeToMinutes(b.e[0]);return diff||a.i-b.i}).map(x=>x.e)}
+$('#scheduleSaveBtn').onclick=()=>{let time=$('#modalTime').value.trim(),title=$('#modalEventTitle').value.trim(),note=$('#modalEventNote').value.trim();if(!time||!title){alert('시간과 일정 내용을 입력해주세요.');return}let e=[time,title,note];if(editingEvent<0)days[selected].events.push(e);else days[selected].events[editingEvent]=e;sortEventsByTime();localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday();closeModal('scheduleModal')};
 $('#scheduleDeleteBtn').onclick=()=>{if(editingEvent>=0&&confirm('이 일정을 삭제할까요?')){days[selected].events.splice(editingEvent,1);localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday();closeModal('scheduleModal')}};
 function tripIndex(){let n=new Date(),y=n.getFullYear();if(y!==2026)return 0;let m=n.getMonth()+1,day=n.getDate();if(m===10&&day>=1&&day<=6)return day-1;return 0}
 function renderToday(){let i=tripIndex(),d=days[i],now=new Date(),start=new Date(2026,9,1),diff=Math.ceil((start-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);todayLabel.textContent=`${d.date} ${d.dow}요일 · ${d.title}`;dday.textContent=diff>0?`D-${diff}`:diff===0?'D-DAY':(now<=new Date(2026,9,6)?`DAY ${i+1}`:'TRIP COMPLETE');todaySchedule.innerHTML=d.events.map(eventHTML).join('')}
