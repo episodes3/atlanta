@@ -7,11 +7,36 @@ const days=[
 {date:'10/6',dow:'화',title:'귀국',events:[['10:00','공항 도착'],['11:35','애틀랜타 출발','KE0034 · 15시간 20분 비행']]}
 ];
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);let selected=0;
+const savedDays=localStorage.getItem('atl_schedule_days');
+if(savedDays){
+  try{
+    const parsed=JSON.parse(savedDays);
+    if(Array.isArray(parsed)&&parsed.length===days.length){
+      parsed.forEach((d,i)=>{ if(Array.isArray(d.events)) days[i].events=d.events; });
+    }
+  }catch(e){}
+}
+function saveSchedule(){localStorage.setItem('atl_schedule_days',JSON.stringify(days));renderDay();renderToday()}
+
 $$('.nav').forEach(b=>b.onclick=()=>{$$('.nav,.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('#'+b.dataset.tab).classList.add('active')});
 function eventHTML(e){return `<div class="event"><div class="time">${e[0]}</div><div><div class="event-title">${e[1]}</div>${e[2]?`<div class="event-note">${e[2]}</div>`:''}</div></div>`}
 function renderDates(){dateTabs.innerHTML=days.map((d,i)=>`<button class="date-tab ${i===selected?'active':''}" onclick="selectDay(${i})"><strong>${d.date}</strong><span>${d.dow} · ${d.title}</span></button>`).join('');renderDay()}
 function selectDay(i){selected=i;renderDates()}
-function renderDay(){let d=days[selected];dayDetail.innerHTML=`<article class="day-card"><div class="day-title"><div><p class="eyebrow">${d.date} · ${d.dow}</p><h2>${d.title}</h2></div><span class="muted">TIME TABLE</span></div><div class="day-events">${d.events.map(eventHTML).join('')}</div></article>`}
+function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function editableEventHTML(e,i){return `<div class="schedule-edit-row">
+  <input class="schedule-time" value="${esc(e[0])}" aria-label="시간" onchange="updateEvent(${i},0,this.value)">
+  <div class="schedule-fields">
+    <input class="schedule-title-input" value="${esc(e[1])}" aria-label="일정 내용" onchange="updateEvent(${i},1,this.value)">
+    <textarea class="schedule-note-input" aria-label="상세 메모" placeholder="상세 메모 (선택)" onchange="updateEvent(${i},2,this.value)">${esc(e[2]||'')}</textarea>
+  </div>
+  <div class="schedule-actions"><button onclick="moveEvent(${i},-1)" title="위로">↑</button><button onclick="moveEvent(${i},1)" title="아래로">↓</button><button class="remove-event" onclick="deleteEvent(${i})" title="삭제">×</button></div>
+</div>`}
+function renderDay(){let d=days[selected];dayDetail.innerHTML=`<article class="day-card"><div class="day-title"><div><p class="eyebrow">${d.date} · ${d.dow}</p><h2>${d.title}</h2><p class="muted edit-help">시간과 내용을 눌러 바로 수정할 수 있어요.</p></div><span class="saved">수정 시 자동 저장</span></div><div class="day-events schedule-editor">${d.events.map(editableEventHTML).join('')}<button class="add-event-btn" onclick="addEvent()">+ 일정 추가</button></div></article>`}
+function updateEvent(i,field,value){days[selected].events[i][field]=value;saveSchedule()}
+function addEvent(){days[selected].events.push(['00:00','새 일정','']);saveSchedule();setTimeout(()=>{const rows=$$('.schedule-edit-row');const last=rows[rows.length-1];if(last)last.querySelector('.schedule-time').focus()},0)}
+function deleteEvent(i){if(confirm('이 일정을 삭제할까요?')){days[selected].events.splice(i,1);saveSchedule()}}
+function moveEvent(i,dir){let j=i+dir;if(j<0||j>=days[selected].events.length)return;[days[selected].events[i],days[selected].events[j]]=[days[selected].events[j],days[selected].events[i]];saveSchedule()}
+
 function tripIndex(){let n=new Date(),y=n.getFullYear();if(y!==2026)return 0;let m=n.getMonth()+1,day=n.getDate();if(m===10&&day>=1&&day<=6)return day-1;return 0}
 function renderToday(){let i=tripIndex(),d=days[i],now=new Date(),start=new Date(2026,9,1),diff=Math.ceil((start-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);todayLabel.textContent=`${d.date} ${d.dow}요일 · ${d.title}`;dday.textContent=diff>0?`D-${diff}`:diff===0?'D-DAY':(now<=new Date(2026,9,6)?`DAY ${i+1}`:'TRIP COMPLETE');todaySchedule.innerHTML=d.events.map(eventHTML).join('')}
 function goScheduleToday(){selected=tripIndex();document.querySelector('[data-tab=schedule]').click();renderDates()}
